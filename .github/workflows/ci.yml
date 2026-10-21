@@ -1,0 +1,59 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e ".[dev]"
+      - run: pytest -q
+      - name: provisioning files match the generator
+        run: python -m fleet_as_code generate --check
+
+  smoke:
+    # docker compose up + replay of the committed 2-day sample, then every panel query through Grafana's API
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - name: throw-away secrets
+        run: |
+          python - <<'EOF'
+          import re, secrets
+          src = open(".env.example").read()
+          open(".env", "w").write(re.sub(r"=change-me", lambda m: "=" + secrets.token_urlsafe(24), src))
+          EOF
+      - run: docker compose --profile render up -d --wait
+      - name: replay the sample at 600x
+        run: >
+          python -m fleet_as_code replay --reset --data tests/data --speed 600
+          --wind-start "2020-10-24 00:00" --pv-start "2016-06-04 06:00" --backfill-h 12 --duration-h 8
+      - run: python -m fleet_as_code verify --time-from now-30m
+      - name: render the dashboards
+        run: |
+          set -a; . ./.env; set +a
+          mkdir -p render
+          for uid in fleet-overview wind-turbine pv-plant alarms; do
+            curl -sf -u "admin:$GF_SECURITY_ADMIN_PASSWORD" -o "render/$uid.png" \
+              "http://127.0.0.1:3000/render/d/$uid?from=now-30m&to=now&width=1600&height=1000&kiosk=true&tz=UTC"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dashboards
+          path: render/
+      - if: failure()
+        run: docker compose logs --tail 200

@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "grafana-fleet-as-code"
+version = "0.1.0"
+description = "Renewable fleet monitoring in Grafana where datasources, dashboards and alert rules are generated from Python, fed by a live replay of public wind (Kelmarsh) and PV (NREL PVDAQ) SCADA data."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "pyarrow>=14",
+    "requests>=2.31",
+    "PyYAML>=6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+capture = ["playwright>=1.45", "Pillow>=10"]
+
+[project.scripts]
+fleet-as-code = "fleet_as_code.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

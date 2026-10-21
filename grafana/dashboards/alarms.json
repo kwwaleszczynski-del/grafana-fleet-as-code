@@ -1,0 +1,443 @@
+{
+  "uid": "alarms",
+  "title": "Alarms",
+  "description": "Alert state and the event log. Replay at 60x: one minute on the time axis is 60 minutes of plant time, so the default 'last 1 hour' shows 2.5 days of operation.",
+  "tags": [
+    "fleet"
+  ],
+  "editable": false,
+  "graphTooltip": 1,
+  "timezone": "browser",
+  "schemaVersion": 41,
+  "version": 1,
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "refresh": "10s",
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m"
+    ]
+  },
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "Fleet",
+      "type": "dashboards",
+      "tags": [
+        "fleet"
+      ],
+      "asDropdown": false,
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "external link"
+    }
+  ],
+  "panels": [
+    {
+      "type": "alertlist",
+      "title": "Alerts",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 10,
+        "h": 10
+      },
+      "pluginVersion": "13.2.4",
+      "description": "Firing and pending alert instances (label fleet=demo).",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "viewMode": "list",
+        "groupMode": "default",
+        "groupBy": [],
+        "maxItems": 20,
+        "sortOrder": 1,
+        "dashboardAlerts": false,
+        "alertName": "",
+        "alertInstanceLabelFilter": "{fleet=\"demo\"}",
+        "showInstances": true,
+        "stateFilter": {
+          "firing": true,
+          "pending": true,
+          "noData": true,
+          "normal": false,
+          "error": true,
+          "recovering": true
+        }
+      },
+      "id": 1
+    },
+    {
+      "type": "barchart",
+      "title": "Events by IEC category",
+      "gridPos": {
+        "x": 10,
+        "y": 0,
+        "w": 7,
+        "h": 10
+      },
+      "pluginVersion": "13.2.4",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-fleet"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-fleet"
+          },
+          "query": "from(bucket: \"fleet\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"event\" and r._field == \"code\")\n  |> group(columns: [\"category\"])\n  |> count()\n  |> group()\n  |> keep(columns: [\"category\", \"_value\"])\n  |> rename(columns: {_value: \"events\"})\n  |> sort(columns: [\"events\"], desc: true)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          },
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 0,
+            "gradientMode": "none",
+            "axisPlacement": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "xField": "category",
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "barWidth": 0.8,
+        "groupWidth": 0.7,
+        "stacking": "none",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "id": 2
+    },
+    {
+      "type": "barchart",
+      "title": "Events by asset",
+      "gridPos": {
+        "x": 17,
+        "y": 0,
+        "w": 7,
+        "h": 10
+      },
+      "pluginVersion": "13.2.4",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-fleet"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-fleet"
+          },
+          "query": "from(bucket: \"fleet\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"event\" and r._field == \"code\")\n  |> group(columns: [\"asset\"])\n  |> count()\n  |> group()\n  |> keep(columns: [\"asset\", \"_value\"])\n  |> rename(columns: {_value: \"events\"})\n  |> sort(columns: [\"events\"], desc: true)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          },
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 0,
+            "gradientMode": "none",
+            "axisPlacement": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "xField": "asset",
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "barWidth": 0.8,
+        "groupWidth": 0.7,
+        "stacking": "none",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "id": 3
+    },
+    {
+      "type": "state-timeline",
+      "title": "Asset state",
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 24,
+        "h": 7
+      },
+      "pluginVersion": "13.2.4",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-fleet"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-fleet"
+          },
+          "query": "from(bucket: \"fleet\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => (r._measurement == \"wind_turbine\" or r._measurement == \"pv_inverter\") and r._field == \"state\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> map(fn: (r) => ({r with _value: string(v: r._value)}))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 0,
+            "spanNulls": false
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "text"
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Producing",
+                  "color": "green",
+                  "index": 0
+                },
+                "1": {
+                  "text": "Ready, not producing",
+                  "color": "blue",
+                  "index": 1
+                },
+                "2": {
+                  "text": "Stopped, out of spec",
+                  "color": "yellow",
+                  "index": 2
+                },
+                "3": {
+                  "text": "Maintenance",
+                  "color": "purple",
+                  "index": 3
+                },
+                "4": {
+                  "text": "Fault",
+                  "color": "red",
+                  "index": 4
+                }
+              }
+            }
+          ],
+          "displayName": "${__field.labels.asset}"
+        },
+        "overrides": []
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "never",
+        "alignValue": "left",
+        "rowHeight": 0.85,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "interval": "10s",
+      "id": 4
+    },
+    {
+      "type": "table",
+      "title": "Event log",
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 24,
+        "h": 10
+      },
+      "pluginVersion": "13.2.4",
+      "description": "Stop and warning events from the turbine status logs and inverter error codes.",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-fleet"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-fleet"
+          },
+          "query": "from(bucket: \"fleet\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"event\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> keep(columns: [\"_time\", \"asset\", \"severity\", \"category\", \"code\", \"message\"])\n  |> sort(columns: [\"_time\"], desc: true)\n  |> limit(n: 200)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": false
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "text"
+              }
+            ]
+          },
+          "noValue": "No events in range"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Severity"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "Stop": {
+                        "color": "red",
+                        "index": 0
+                      },
+                      "Warning": {
+                        "color": "orange",
+                        "index": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "sortBy": [
+          {
+            "displayName": "Time",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "_time": "Time",
+              "asset": "Asset",
+              "severity": "Severity",
+              "category": "IEC category",
+              "code": "Code",
+              "message": "Message"
+            },
+            "indexByName": {
+              "_time": 0,
+              "asset": 1,
+              "severity": 2,
+              "category": 3,
+              "code": 4,
+              "message": 5
+            }
+          }
+        }
+      ],
+      "id": 5
+    }
+  ]
+}
