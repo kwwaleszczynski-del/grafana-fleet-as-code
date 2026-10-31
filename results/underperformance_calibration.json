@@ -1,0 +1,50 @@
+{
+  "period": "2020-10-15 .. 2020-11-14",
+  "first": {
+    "reference_curve": "fleet",
+    "min_expected_kw": 150.0,
+    "window_h": 2.0,
+    "min_records": 6,
+    "fully_available_only": false,
+    "episodes": 81,
+    "episodes_by_asset": {
+      "KWF1": 22,
+      "KWF2": 7,
+      "KWF3": 11,
+      "KWF4": 15,
+      "KWF5": 11,
+      "KWF6": 15
+    },
+    "episodes_at_4_5_to_6_ms": 71
+  },
+  "final": {
+    "reference_curve": "per turbine",
+    "min_expected_kw": 500.0,
+    "window_h": 4.0,
+    "min_records": 12,
+    "fully_available_only": true,
+    "episodes": 5,
+    "episodes_by_asset": {
+      "KWF1": 1,
+      "KWF2": 1,
+      "KWF3": 1,
+      "KWF4": 0,
+      "KWF5": 1,
+      "KWF6": 1
+    },
+    "episodes_at_4_5_to_6_ms": 0
+  },
+  "energy_vs_fleet_curve": {
+    "KWF1": 0.964,
+    "KWF2": 1.011,
+    "KWF3": 1.005,
+    "KWF4": 0.996,
+    "KWF5": 1.018,
+    "KWF6": 0.998
+  },
+  "pv_before_failure": {
+    "stop": "2016-06-04 14:00 UTC",
+    "min_pr_2h": 0.48,
+    "below_threshold": false
+  }
+}

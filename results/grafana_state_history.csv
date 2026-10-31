@@ -1,0 +1,9 @@
+wall_time,rule,asset,prev_state,new_state,value
+2026-10-21 12:03:40+00:00,Wind turbine underperformance,KWF4,Normal,Pending,0.837318
+2026-10-21 12:04:10+00:00,Wind turbine underperformance,KWF4,Pending,Alerting,0.811718
+2026-10-21 12:10:00+00:00,Availability drop,INV1,Normal,Alerting,0.886792
+2026-10-21 12:10:00+00:00,Asset data missing,KWF2,Normal,Alerting,32.074937
+2026-10-21 12:10:00+00:00,PV underperformance,INV1,Normal,Pending,0.0
+2026-10-21 12:10:30+00:00,PV underperformance,INV1,Pending,Alerting,0.0
+2026-10-21 12:11:30+00:00,Availability drop,KWF3,Normal,Alerting,0.895509
+2026-10-21 12:13:20+00:00,Asset data missing,KWF2,Alerting,Normal,12.077128

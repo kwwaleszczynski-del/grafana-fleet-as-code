@@ -8,6 +8,8 @@ Usage:
     python -m fleet_as_code replay --data tests/data --speed 600 --backfill-h 24   # small committed sample
     python -m fleet_as_code replay --fault derate:KWF4:2:12:0.7 --fault blackout:KWF2:6:3
     python -m fleet_as_code verify                        # query every panel through Grafana's API
+    python -m fleet_as_code alert-timing                  # alert rules evaluated offline on tests/data -> results/
+    python -m fleet_as_code calibrate --data data/replay  # underperformance rule versions on the month -> results/
     python -m fleet_as_code portable fetch | up           # run Grafana + InfluxDB without Docker
 
 Connection settings and passwords come from .env (see .env.example).
@@ -111,6 +113,18 @@ def cmd_verify(args) -> int:
     return 1 if problems else 0
 
 
+def cmd_alert_timing(args) -> int:
+    from fleet_as_code.evaluate import write_alert_timing
+    timing = write_alert_timing(args.data, args.out)
+    return 1 if timing["fired"].isna().any() else 0
+
+
+def cmd_calibrate(args) -> int:
+    from fleet_as_code.evaluate import write_calibration
+    write_calibration(args.data, args.out)
+    return 0
+
+
 def cmd_portable(args) -> int:
     from fleet_as_code import portable
     portable.fetch() if args.action == "fetch" else portable.up()
@@ -157,13 +171,22 @@ def main(argv=None) -> int:
     p.add_argument("--time-from", default="now-1h")
     p.add_argument("--speed", type=float, default=config.SPEED)
 
+    p = sub.add_parser("alert-timing", help="evaluate the alert rules offline on the demo replay (two injected faults)")
+    p.add_argument("--data", type=Path, default=config.SAMPLE_DIR, help="replay files (default: committed sample)")
+    p.add_argument("--out", type=Path, default=config.ROOT / "results")
+
+    p = sub.add_parser("calibrate", help="first vs final wind underperformance rule on the unmodified month")
+    p.add_argument("--data", type=Path, default=Path("data/replay"), help="replay files of the month (from prepare)")
+    p.add_argument("--out", type=Path, default=config.ROOT / "results")
+
     p = sub.add_parser("portable", help="Grafana + InfluxDB binaries without Docker")
     p.add_argument("action", choices=["fetch", "up"])
 
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
     handlers = {"generate": cmd_generate, "prepare": cmd_prepare, "setup": cmd_setup, "replay": cmd_replay,
-                "verify": cmd_verify, "portable": cmd_portable}
+                "verify": cmd_verify, "alert-timing": cmd_alert_timing, "calibrate": cmd_calibrate,
+                "portable": cmd_portable}
     return handlers[args.cmd](args)
 
 

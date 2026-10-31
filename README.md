@@ -20,19 +20,24 @@ sun, turbine KWF3 trips on a frequency converter error, and the alert list fills
 
 The default replay starts the wind farm at 24 Oct 2020 02:00 UTC and the PV roof at 3 Jun 2016 20:00 local time,
 with 48 h of history, and the demo adds two faults on top. Alert times are in plant time after the event, from
-the run behind the screenshots:
+the alert rules evaluated offline on the committed sample (`python -m fleet_as_code alert-timing` writes
+`results/alert_timing.csv`); they match the state changes Grafana recorded in the run behind the screenshots
+(its alert state history, exported to `results/grafana_state_history.csv`):
 
 | Event | Real or injected | Alert | Fired after |
 |---|---|---|---|
-| KWF4 derated to 70 % for 12 h | injected | Wind turbine underperformance (KWF4) | 2.7 h |
-| PV inverter stops producing at sunrise on 4 Jun 2016 while reporting error code 0 | real | Availability drop (INV1) | 1.3 h |
-| same | | PV underperformance (INV1) | 2.0 h |
-| KWF2 stops sending data for 3.5 h | injected | Asset data missing (KWF2) | 0.5 h |
+| KWF4 derated to 70 % for 12 h | injected | Wind turbine underperformance (KWF4) | 2.5 h |
+| PV inverter stops producing at 06:00 local standard time on 4 Jun 2016 while reporting error code 0 | real | Availability drop (INV1) | 1.3 h |
+| same | | PV underperformance (INV1) | 1.8 h |
+| KWF2 stops sending data for 3.5 h | injected | Asset data missing (KWF2) | 0.3 h |
 | KWF3 trips on a frequency converter error, 24 Oct 2020 12:09 UTC, down for 51 h | real | Availability drop (KWF3) | 2.7 h |
 
-The PV case is the interesting one: the inverter's own error code only appears on 14 June, ten days after it
-stopped exporting, and its channels go missing three days later. A PR rule on plane-of-array irradiance catches
-it two hours after sunrise on the first day. No other alert fired during this run.
+The PV case is the interesting one: the inverter stopped at 06:00 local standard time on 4 Jun 2016 while
+reporting error code 0; the first error code (160) arrived on 14 Jun 07:28, about 10 days later, then 139; from
+16 Jun 11:45 the inverter channels stop logging (data gap) and production resumes on 8 Jul, 34 days after the
+stop (shared [PVDAQ site notes](https://github.com/kwwaleszczynski-del/pv-outage-classifier/blob/main/PVDAQ_SITE_NOTES.md)).
+A PR rule on plane-of-array irradiance catches it 1.8 h after the stop, on the first day. No other alert fires in
+this run (`results/alert_episodes.csv`).
 
 ## Quick start
 
@@ -98,14 +103,17 @@ Each rule is a Flux query that returns one value per asset, a Reduce (last) and 
 `__dashboardUid__` / `__panelId__` annotations, so their state shows up on the matching panels.
 
 **Tuned on the unmodified data.** The rule logic was replayed in pandas over the whole month before settling the
-thresholds. A first version of the underperformance rule (one fleet-wide reference curve, a 150 kW floor, 2 h
-window) would have fired 81 times in the month on six healthy turbines, almost all at 4.5-6 m/s, where the
-steep part of the curve turns small wind speed differences into large relative errors, and most of them on
-KWF1, which runs about 4 % below the fleet curve. Per-turbine reference curves, a 500 kW floor and a 4 h window
-bring that down to 5 episodes (about one per turbine per month) while the injected 30 % derating is still caught
-about 2.7 h after it starts. A second lesson came from KWF3: a restart attempt inside the converter outage (one
-interval at 112 kW against 1.9 MW expected) looked like terrible performance, hence "fully available intervals
-only". The PV rule never fires on the ten days before the inverter failure (lowest 2 h PR 0.48).
+thresholds (`python -m fleet_as_code calibrate` on the `prepare` output writes
+`results/underperformance_calibration.json`). A first version of the underperformance rule, reconstructed as the
+final rule with its changes undone (one fleet-wide reference curve, the 2019 turbine curves pooled; a 150 kW
+floor; a 2 h window of which half, 1 h, must be producing intervals, of any availability), would have fired 81 times in the month on six healthy turbines, 71 of them at
+4.5-6 m/s, where the steep part of the curve turns small wind speed differences into large relative errors, and
+the largest share (22) on KWF1, which runs about 4 % below the fleet curve. Per-turbine reference curves, a
+500 kW floor and a 4 h window (at least 2 h qualifying) bring that down to 5 episodes (about one per turbine per
+month) while the injected 30 % derating is still caught about 2.5 h after it starts. A second lesson came from
+KWF3: a restart attempt inside the converter outage (one interval at 112 kW against 1.9 MW expected) looked like
+terrible performance, hence "fully available intervals only". The PV rule never fires on the ten days before the
+inverter failure (lowest 2 h PR 0.48).
 
 ## How it works
 
@@ -179,13 +187,14 @@ screenshots it surfaced these:
 
 ## Tests
 
-`pytest -q` runs 91 tests in a few seconds, without network or Docker: the committed provisioning files match the
+`pytest -q` runs 98 tests in a few seconds, without network or Docker: the committed provisioning files match the
 generator; dashboards have unique ids and titles, fit the 24-column grid without overlaps and only reference the
 provisioned datasource, defined variables and existing dashboards; every Flux query (panels and rules) uses known
 buckets, measurements and fields with balanced brackets; alert rules are well formed at 1x, 60x and 600x and link
 to existing panels; no secret ends up in a provisioning file. Further tests cover the line protocol encoder, both
 source parsers (encodings, units, time zones, dropouts), the status-to-state logic, the reference curve and the
-replay on a fake clock.
+replay on a fake clock. The offline alert evaluation must reproduce `results/` from the committed sample and
+Grafana's recorded state changes of the demo run, and the numbers quoted in this README must equal `results/`.
 
 The CI workflow runs the tests on Python 3.11 and 3.12, then a smoke job: `docker compose --profile render up`, a
 600x replay of the committed sample, `verify` against the running Grafana (datasource health, provisioned
@@ -207,10 +216,12 @@ src/fleet_as_code/
   replay.py            accelerated clock, fault injection, line protocol batches
   influx.py            small InfluxDB 2 HTTP client (setup, buckets, write, delete, query)
   verify.py            checks a running stack through Grafana's API
+  evaluate.py          alert rules evaluated offline in pandas: alert timing, rule calibration
   portable.py          Grafana + InfluxDB binaries without Docker
-  cli.py               generate | prepare | setup | replay | verify | portable
+  cli.py               generate | prepare | setup | replay | verify | alert-timing | calibrate | portable
 grafana/               generated provisioning files and dashboard JSON (committed)
 reference/             per-turbine reference power curves (derived from Kelmarsh 2019)
+results/               alert timing and calibration numbers quoted above, Grafana's state history of the demo run
 scripts/capture.py     README screenshots and GIF (Playwright)
 tests/                 pytest suite and a two-day data sample
 ```
@@ -229,7 +240,7 @@ tests/                 pytest suite and a two-day data sample
 
 Code: MIT.
 
-- *Kelmarsh wind farm data*, C. Plumley and R. Takeuchi,
+- Plumley, C. (2022). *Kelmarsh wind farm data*. Zenodo,
   [doi:10.5281/zenodo.16807551](https://doi.org/10.5281/zenodo.16807551), CC BY 4.0. `prepare` expects
   `Kelmarsh_SCADA_2019_3085.zip` (reference year, 311 MB) and `Kelmarsh_SCADA_2020_3086.zip` (474 MB) in
   `data/kelmarsh`.
